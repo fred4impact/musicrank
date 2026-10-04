@@ -19,6 +19,19 @@ export function createApp(pool: Pool) {
     res.status(200).json({ status: "ok" });
   });
 
+  // Unlike /health (always 200 — "is the process alive"), /ready actually
+  // checks the dependency this service needs, so Kubernetes can tell a
+  // crashed container apart from one that's up but can't reach Postgres yet
+  // (spec §20). Used for the readiness probe; /health stays the liveness one.
+  app.get("/ready", async (_req, res) => {
+    try {
+      await pool.query("SELECT 1");
+      res.status(200).json({ status: "ready" });
+    } catch {
+      res.status(503).json({ status: "not ready" });
+    }
+  });
+
   app.use("/api/v1", rankingsRouter(pool));
   app.use("/api/v1", songsRouter(pool));
   app.use("/api/v1", artistsRouter(pool));

@@ -1,0 +1,17 @@
+# Non-sensitive config only (spec §19). DATABASE_URL lives in a Secret
+# instead — our services take one connection-string env var rather than
+# separate host/user/password vars, and that string embeds the password,
+# so the whole thing has to be a Secret, not split across both. See
+# secrets.example.yaml for the DATABASE_URL shape.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musicrank-config
+  namespace: musicrank
+data:
+  REDIS_URL: "redis://redis:6379"
+  # The frontend calls these from the user's browser, not from inside the
+  # cluster, so they have to be externally-reachable addresses, same as the
+  # Docker Compose setup — see kubernetes/frontend's build-time args instead
+  # of a runtime env var here (Vite inlines these at build time).
+  FRONTEND_ORIGIN: "http://localhost:5173"

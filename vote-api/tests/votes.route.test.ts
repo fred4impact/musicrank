@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
 const lpush = vi.fn().mockResolvedValue(1);
+const ping = vi.fn().mockResolvedValue("PONG");
 vi.mock("../src/redis.js", () => ({
   VOTE_QUEUE_KEY: "music:votes",
-  getRedisClient: () => ({ lpush }),
+  getRedisClient: () => ({ lpush, ping }),
 }));
 
 const { createApp } = await import("../src/app.js");
@@ -41,5 +42,20 @@ describe("GET /health", () => {
     const res = await request(app).get("/health");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: "ok" });
+  });
+});
+
+describe("GET /ready", () => {
+  it("returns 200 when Redis is reachable", async () => {
+    const app = createApp();
+    const res = await request(app).get("/ready");
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 503 when Redis is unreachable", async () => {
+    ping.mockRejectedValueOnce(new Error("connection refused"));
+    const app = createApp();
+    const res = await request(app).get("/ready");
+    expect(res.status).toBe(503);
   });
 });

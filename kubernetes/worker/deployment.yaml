@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: musicrank
+spec:
+  replicas: 2 # spec §22: "the worker can also be scaled independently"
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: musicrank-worker:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: musicrank-secrets
+                  key: DATABASE_URL
+          envFrom:
+            - configMapRef:
+                name: musicrank-config
+          # No readiness/liveness probes — no HTTP server to check against
+          # (spec §20's health check requirement is API-scoped). Each
+          # replica independently BRPOPs the same Redis list, so Redis
+          # itself guarantees no two workers process the same event.

@@ -33,6 +33,13 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET /ready", () => {
+  it("returns 200 when Postgres is reachable", async () => {
+    const res = await request(app).get("/ready");
+    expect(res.status).toBe(200);
+  });
+});
+
 describe("GET /api/v1/genres", () => {
   it("returns the seeded genres", async () => {
     const res = await request(app).get("/api/v1/genres");

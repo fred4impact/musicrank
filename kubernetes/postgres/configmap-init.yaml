@@ -1,0 +1,132 @@
+# GENERATED FILE — do not hand-edit. Regenerate after changing
+# database/migrations/0001_init.sql or database/seed/seed.sql:
+#
+#   kubectl create configmap musicrank-postgres-init \
+#     --from-file=01-schema.sql=database/migrations/0001_init.sql \
+#     --from-file=02-seed.sql=database/seed/seed.sql \
+#     -n musicrank --dry-run=client -o yaml > kubernetes/postgres/configmap-init.yaml
+#
+# (then re-add this header comment, kubectl's dry-run output doesn't keep it)
+apiVersion: v1
+data:
+  01-schema.sql: |
+    -- MusicRank initial schema
+    -- users.id is a client-generated UUID (anonymous voting, no auth in V1 — see spec §25/§26).
+    -- Other entities use plain serial IDs, matching the spec's own example payloads (songId: 123, etc).
+
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+    CREATE TABLE genres (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE artists (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE songs (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      artist_id INTEGER NOT NULL REFERENCES artists(id),
+      genre_id INTEGER REFERENCES genres(id),
+      album TEXT,
+      release_date DATE,
+      duration_seconds INTEGER,
+      cover_image_url TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_songs_artist_id ON songs(artist_id);
+    CREATE INDEX idx_songs_genre_id ON songs(genre_id);
+
+    -- Anonymous client identity: the frontend generates this UUID on first visit
+    -- (localStorage) and sends it as userId with every vote. No login in V1.
+    CREATE TABLE users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      username TEXT,
+      email TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE votes (
+      id SERIAL PRIMARY KEY,
+      event_id TEXT NOT NULL UNIQUE,
+      user_id UUID NOT NULL REFERENCES users(id),
+      song_id INTEGER NOT NULL REFERENCES songs(id),
+      rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (user_id, song_id)
+    );
+
+    CREATE INDEX idx_votes_song_id ON votes(song_id);
+    CREATE INDEX idx_votes_user_id ON votes(user_id);
+
+    CREATE TABLE song_statistics (
+      song_id INTEGER PRIMARY KEY REFERENCES songs(id),
+      vote_count INTEGER NOT NULL DEFAULT 0,
+      average_rating NUMERIC(3,2) NOT NULL DEFAULT 0,
+      ranking_score NUMERIC(6,3) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  02-seed.sql: |
+    -- Fictional placeholder catalogue for local development/demo.
+    -- Titles/artists are made up on purpose — avoids any real-rights-holder
+    -- association in a public portfolio repo (see spec non-goals: no copyrighted
+    -- music, no streaming). cover_image_url is left NULL until a media story exists.
+
+    INSERT INTO genres (name) VALUES
+      ('Rock'), ('Pop'), ('Electronic'), ('Hip-Hop'), ('Jazz'), ('Indie')
+    ON CONFLICT (name) DO NOTHING;
+
+    INSERT INTO artists (name) VALUES
+      ('The Faded Signals'),
+      ('Nova Ember'),
+      ('Glass Hollow'),
+      ('Marcus Reign'),
+      ('Paper Tide'),
+      ('The Low Static'),
+      ('Kira Vance'),
+      ('Orbit & Rust');
+
+    -- seq + ORDER BY makes song id assignment deterministic — without it, the
+    -- JOIN below is free to reorder rows and song ids wouldn't reliably match
+    -- this list across environments.
+    INSERT INTO songs (title, artist_id, genre_id, album, release_date, duration_seconds)
+    SELECT s.title, a.id, g.id, s.album, s.release_date::date, s.duration_seconds
+    FROM (VALUES
+      (1, 'Midnight Frequency', 'The Faded Signals', 'Rock', 'Static Lines', '2023-03-14', 214),
+      (2, 'Reckless Weather', 'The Faded Signals', 'Rock', 'Static Lines', '2023-03-14', 198),
+      (3, 'Golden Hour Again', 'Nova Ember', 'Pop', 'Afterglow', '2024-06-02', 187),
+      (4, 'Paper Hearts', 'Nova Ember', 'Pop', 'Afterglow', '2024-06-02', 203),
+      (5, 'Hollow Bloom', 'Glass Hollow', 'Indie', 'Slow Rooms', '2022-11-09', 241),
+      (6, 'Quiet Static', 'Glass Hollow', 'Indie', 'Slow Rooms', '2022-11-09', 229),
+      (7, 'Night Circuit', 'Marcus Reign', 'Hip-Hop', 'Reign Supreme', '2025-01-20', 176),
+      (8, 'No Ceiling', 'Marcus Reign', 'Hip-Hop', 'Reign Supreme', '2025-01-20', 192),
+      (9, 'Low Tide Letters', 'Paper Tide', 'Indie', 'Shoreline', '2023-08-30', 220),
+      (10, 'Washed Out', 'Paper Tide', 'Indie', 'Shoreline', '2023-08-30', 205),
+      (11, 'Static Bloom', 'The Low Static', 'Electronic', 'Interference', '2024-02-17', 256),
+      (12, 'Pulse Drive', 'The Low Static', 'Electronic', 'Interference', '2024-02-17', 234),
+      (13, 'Velvet Smoke', 'Kira Vance', 'Jazz', 'After Dark', '2021-09-05', 263),
+      (14, 'Blue Room', 'Kira Vance', 'Jazz', 'After Dark', '2021-09-05', 247),
+      (15, 'Satellite Heart', 'Orbit & Rust', 'Electronic', 'Drift', '2025-04-11', 211),
+      (16, 'Gravity Well', 'Orbit & Rust', 'Electronic', 'Drift', '2025-04-11', 198),
+      (17, 'Faded Polaroid', 'Nova Ember', 'Pop', 'Afterglow', '2024-06-02', 179),
+      (18, 'Rust Belt Romance', 'The Faded Signals', 'Rock', 'Static Lines', '2023-03-14', 225),
+      (19, 'Counting Streetlights', 'Paper Tide', 'Indie', 'Shoreline', '2023-08-30', 212),
+      (20, 'Afterimage', 'Glass Hollow', 'Indie', 'Slow Rooms', '2022-11-09', 233)
+    ) AS s(seq, title, artist_name, genre_name, album, release_date, duration_seconds)
+    JOIN artists a ON a.name = s.artist_name
+    JOIN genres g ON g.name = s.genre_name
+    ORDER BY s.seq;
+
+    INSERT INTO song_statistics (song_id, vote_count, average_rating, ranking_score)
+    SELECT id, 0, 0, 0 FROM songs
+    ON CONFLICT (song_id) DO NOTHING;
+kind: ConfigMap
+metadata:
+  name: musicrank-postgres-init
+  namespace: musicrank

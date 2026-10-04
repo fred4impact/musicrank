@@ -44,6 +44,14 @@ services come up healthy once their dependencies are ready.
 Check status: `docker compose ps`. Tear down: `docker compose down` (add
 `-v` to also wipe the Postgres volume and reseed from scratch next time).
 
+## Running on Kubernetes
+
+See `kubernetes/README.md` — same five services, same URLs, deployed to a
+local cluster (tested against Docker Desktop's built-in Kubernetes)
+instead of Docker Compose. Covers the deploy order, first-time secret
+setup, and a couple of non-obvious gotchas worth reading before `kubectl
+apply`.
+
 ## Running services individually (without Docker)
 
 Each service's own README covers `npm install && npm run dev`, which is
@@ -60,6 +68,10 @@ cd ranking-api && npm test   # integration tests, needs postgres running+migrate
 
 ## Status
 
-Phases 1–4 of `spec.md`'s build plan are done: database, all three backend
-services, the frontend, and now Docker/Docker Compose — the full MVP loop
-(§35) runs end-to-end in containers. Kubernetes (Phase 5) is next.
+Phases 1–5 of `spec.md`'s build plan are done: database, all three backend
+services, the frontend, Docker/Docker Compose, and now a base Kubernetes
+deployment (namespace, Deployments/StatefulSet, Services, ConfigMap,
+Secret, readiness/liveness probes, persistent Postgres storage — all
+verified live, including a real pod-deletion test proving data survives).
+Kubernetes scaling (Phase 6 — resource limits, HPA, pod-failure/rolling-
+update demos) is next.

@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote-api
+  namespace: musicrank
+spec:
+  replicas: 2 # spec §22's initial deployment count — bumped further in Phase 6
+  selector:
+    matchLabels:
+      app: vote-api
+  template:
+    metadata:
+      labels:
+        app: vote-api
+    spec:
+      containers:
+        - name: vote-api
+          image: musicrank-vote-api:latest
+          imagePullPolicy: IfNotPresent # built locally via docker compose — see README
+          ports:
+            - containerPort: 4001
+          env:
+            - name: PORT
+              value: "4001"
+          envFrom:
+            - configMapRef:
+                name: musicrank-config
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 4001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vote-api
+  namespace: musicrank
+spec:
+  # Exposed directly (spec §18 explicitly allows this) since the frontend
+  # calls it from the browser rather than through a server-side proxy.
+  type: LoadBalancer
+  selector:
+    app: vote-api
+  ports:
+    - port: 4001
+      targetPort: 4001

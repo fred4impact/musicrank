@@ -1,3 +1,4 @@
+import cors from "cors";
 import express from "express";
 // Patches Express 4 so a thrown/rejected error inside an async route handler
 // reaches the error middleware below instead of hanging the request —
@@ -11,6 +12,7 @@ import { genresRouter } from "./routes/genres.js";
 
 export function createApp(pool: Pool) {
   const app = express();
+  app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
   app.use(express.json());
 
   app.get("/health", (_req, res) => {

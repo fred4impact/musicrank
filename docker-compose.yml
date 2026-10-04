@@ -9,6 +9,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Postgres's official image runs any .sql files here, in filename
+      # order, but ONLY the very first time the data volume is created.
+      # Fine for a single schema + seed — a real migration history (multiple
+      # incremental files applied on every startup) is a later-phase concern.
+      - ./database/migrations/0001_init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U musicrank -d musicrank"]
       interval: 5s
@@ -24,6 +30,56 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  vote-api:
+    build: ./vote-api
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+      REDIS_URL: redis://redis:6379
+      FRONTEND_ORIGIN: http://localhost:5173
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ranking-api:
+    build: ./ranking-api
+    ports:
+      - "4002:4002"
+    environment:
+      PORT: 4002
+      DATABASE_URL: postgres://musicrank:musicrank@postgres:5432/musicrank
+      FRONTEND_ORIGIN: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://musicrank:musicrank@postgres:5432/musicrank
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The browser (not a container) calls these, so they must be
+        # host-reachable URLs, not Docker-internal service names — matches
+        # the ports published above.
+        VITE_VOTE_API_URL: http://localhost:4001
+        VITE_RANKING_API_URL: http://localhost:4002
+    ports:
+      - "5173:80"
+    depends_on:
+      - vote-api
+      - ranking-api
 
 volumes:
   postgres-data:

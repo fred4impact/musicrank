@@ -68,10 +68,10 @@ cd ranking-api && npm test   # integration tests, needs postgres running+migrate
 
 ## Status
 
-Phases 1–5 of `spec.md`'s build plan are done: database, all three backend
-services, the frontend, Docker/Docker Compose, and now a base Kubernetes
-deployment (namespace, Deployments/StatefulSet, Services, ConfigMap,
-Secret, readiness/liveness probes, persistent Postgres storage — all
-verified live, including a real pod-deletion test proving data survives).
-Kubernetes scaling (Phase 6 — resource limits, HPA, pod-failure/rolling-
-update demos) is next.
+Phases 1–6 of `spec.md`'s build plan are done: database, all three backend
+services, the frontend, Docker/Docker Compose, Kubernetes, and now scaling
+— 3 replicas each (frontend/vote-api/ranking-api/worker), resource
+requests/limits on every container, and both pod-failure and rolling-update
+demonstrated live with zero dropped requests (see `kubernetes/README.md`'s
+"Phase 6 verification" for the numbers). CI/CD (Phase 7) is next; HPA is
+still open as a stretch item.

@@ -4,7 +4,12 @@ metadata:
   name: ranking-api
   namespace: musicrank
 spec:
-  replicas: 2
+  replicas: 3 # bumped from spec §22's initial 2 — Phase 6 scaling demonstration
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: ranking-api
@@ -15,7 +20,7 @@ spec:
     spec:
       containers:
         - name: ranking-api
-          image: musicrank-ranking-api:latest
+          image: musicrank-ranking-api:0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4002
@@ -30,6 +35,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: musicrank-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           readinessProbe:
             httpGet:
               path: /ready

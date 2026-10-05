@@ -11,11 +11,20 @@ need to load the images into them first (`minikube image load ...` /
 `kind load docker-image ...`), since this setup assumes the cluster shares
 the host's Docker image store the way Docker Desktop's does.
 
-Build the images first (no registry needed for local dev — see root README):
+Build the images first (no registry needed for local dev — see root README),
+then tag them to match what the manifests reference (see "Explicit image
+tags" below for why `:latest` isn't enough):
 
 ```bash
 docker compose build vote-api ranking-api worker frontend
+docker tag musicrank-vote-api:latest musicrank-vote-api:v0.2.0
+docker tag musicrank-ranking-api:latest musicrank-ranking-api:0.1.0
+docker tag musicrank-worker:latest musicrank-worker:0.1.0
+docker tag musicrank-frontend:latest musicrank-frontend:0.0.0
 ```
+
+(Those tags match each service's current `package.json` version — bump
+both together when you actually change a service.)
 
 ## Deploy
 
@@ -93,5 +102,41 @@ to reach them for debugging.
   `localhost:4001`/`4002` because the browser calls those APIs directly,
   not through the frontend container, and that's where this setup
   publishes them.
-- **No resource requests/limits or HPA yet** — that's Phase 6 (spec §21,
-  §22), along with the actual pod-failure/rolling-update demonstrations.
+- **Resource requests/limits** (spec §21) are set on every container.
+  Node services: 100m/128Mi requests, 500m/512Mi limits (spec's own
+  example values). nginx (frontend): lighter, 50m/64Mi–200m/128Mi. Redis
+  and Postgres: sized for a small single-instance workload, not tuned
+  against real load. No HPA yet — spec marks it "Advanced," treating it as
+  a stretch add-on once this base is solid.
+- **Explicit image tags, not `:latest`.** Every Deployment pins a real
+  version tag (`musicrank-vote-api:v0.2.0`, etc) instead of `:latest`.
+  Found out why while testing rolling updates: with `imagePullPolicy:
+  IfNotPresent` and a `:latest` tag, rebuilding the image's *contents*
+  without changing the tag doesn't change the Deployment manifest at all
+  — Kubernetes has nothing to diff, so `kubectl apply` is a silent no-op
+  and no rollout happens, even though the image on disk is newer. Explicit
+  tags make every real change an actual manifest diff, which is what
+  triggers a rollout.
+- **vote-api's `/health` now reports its own version** (read from
+  `package.json` at startup), specifically so a rolling update is
+  observable from the outside — `curl localhost:4001/health` shows the
+  version flip mid-rollout, not just "pods got replaced."
+
+## Phase 6 verification (scaling, self-healing, rolling updates)
+
+All three done live against this deployment, not just configured:
+
+- **Resource limits + 3 replicas each** for frontend/vote-api/ranking-api/
+  worker (up from 2) — applied via normal `kubectl apply`, confirmed with
+  `kubectl rollout status` and `kubectl get pods`.
+- **Pod failure / self-healing**: deleted a running vote-api pod while a
+  script hit `/health` every 150ms. Result: 60/60 requests succeeded (0
+  failed) — the Service routed around the dead pod via the other 2
+  replicas the entire time, and Kubernetes replaced the deleted pod
+  automatically, restoring 3/3.
+- **Rolling update**: bumped vote-api's version, built
+  `musicrank-vote-api:v0.2.0`, updated the Deployment's image tag, and
+  applied it while hammering `/health` continuously. 100 requests, 0
+  failures, and the response body's `version` field was confirmed to flip
+  from the old build to `0.2.0` as the rollout progressed — a real
+  zero-downtime rollover, not just "the pods eventually came back."

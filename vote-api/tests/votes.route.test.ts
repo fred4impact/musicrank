@@ -37,11 +37,12 @@ describe("POST /api/v1/votes", () => {
 });
 
 describe("GET /health", () => {
-  it("returns ok", async () => {
+  it("returns ok with a version string", async () => {
     const app = createApp();
     const res = await request(app).get("/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: "ok" });
+    expect(res.body.status).toBe("ok");
+    expect(typeof res.body.version).toBe("string");
   });
 });
 

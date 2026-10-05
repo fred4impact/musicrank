@@ -1,7 +1,16 @@
+import { readFileSync } from "node:fs";
 import cors from "cors";
 import express from "express";
 import { getRedisClient } from "./redis.js";
 import { votesRouter } from "./routes/votes.js";
+
+// Read once at startup rather than per-request. Used to make a rolling
+// update observable from the outside (see kubernetes/README.md's Phase 6
+// notes) — not required by the spec, just a common, genuinely useful
+// practice for a health endpoint.
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+  version: string;
+};
 
 export function createApp() {
   const app = express();
@@ -9,7 +18,7 @@ export function createApp() {
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
-    res.status(200).json({ status: "ok" });
+    res.status(200).json({ status: "ok", version });
   });
 
   // See ranking-api's /ready for the same rationale — checks Redis is

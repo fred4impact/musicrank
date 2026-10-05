@@ -4,7 +4,12 @@ metadata:
   name: frontend
   namespace: musicrank
 spec:
-  replicas: 2
+  replicas: 3 # bumped from 2 — Phase 6 scaling demonstration
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: frontend
@@ -19,10 +24,18 @@ spec:
           # values were baked in at build time pointing at localhost:4001/
           # 4002, which still works here since vote-api/ranking-api's
           # Services below publish those same ports to the host.
-          image: musicrank-frontend:latest
+          image: musicrank-frontend:0.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
+          # Lighter than the Node services — nginx serving static files.
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
           readinessProbe:
             httpGet:
               path: /

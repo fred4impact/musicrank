@@ -16,4 +16,6 @@ directly — see spec §6.
 npm install
 npm run dev        # requires REDIS_URL (defaults to redis://localhost:6379)
 npm test
+npm run lint        # eslint
+npm run typecheck
 ```

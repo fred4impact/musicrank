@@ -1,0 +1,127 @@
+name: Test
+
+# workflow_call makes this reusable from build.yml, so "tests pass" is a
+# real gate on the build/push job there, not just a convention — see
+# build.yml's "test" job.
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+jobs:
+  vote-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vote-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vote-api/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test # fully mocked (Redis mocked in tests) — no service container needed
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build # tsc -b && vite build — typecheck + production build in one
+
+  # ranking-api and worker both have integration tests that hit a real
+  # Postgres (spec §30 — deliberately not mocked, since the thing under
+  # test is the SQL itself). A Postgres service container stands in for
+  # docker-compose's postgres here, migrated + seeded the same way.
+  ranking-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranking-api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: musicrank
+          POSTGRES_PASSWORD: musicrank
+          POSTGRES_DB: musicrank
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U musicrank -d musicrank"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://musicrank:musicrank@localhost:5432/musicrank
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ranking-api/package-lock.json
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply schema + seed
+        working-directory: .
+        run: |
+          psql "$DATABASE_URL" -f database/migrations/0001_init.sql
+          psql "$DATABASE_URL" -f database/seed/seed.sql
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: musicrank
+          POSTGRES_PASSWORD: musicrank
+          POSTGRES_DB: musicrank
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U musicrank -d musicrank"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://musicrank:musicrank@localhost:5432/musicrank
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply schema + seed
+        working-directory: .
+        run: |
+          psql "$DATABASE_URL" -f database/migrations/0001_init.sql
+          psql "$DATABASE_URL" -f database/seed/seed.sql
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test

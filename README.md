@@ -66,12 +66,42 @@ cd worker && npm test        # integration tests, needs postgres running+migrate
 cd ranking-api && npm test   # integration tests, needs postgres running+migrated+seeded
 ```
 
+Each backend service also has `npm run lint` (ESLint) and `npm run
+typecheck` (`tsc --noEmit`) — both are part of CI below.
+
+## CI/CD
+
+`.github/workflows/test.yml` — lint, typecheck, and test all 4 services on
+every push/PR. `ranking-api`/`worker` get a real Postgres service container
+(migrated + seeded), matching how their integration tests run locally —
+not mocked, same reasoning as the local test suites.
+
+`.github/workflows/build.yml` — on push to `main`, calls `test.yml` as a
+gate (`uses: ./.github/workflows/test.yml`), then builds and pushes all 4
+Docker images to GHCR (`ghcr.io/<owner>/musicrank-<service>:latest` and
+`:<commit-sha>`) once tests pass. Deployment stays manual (spec §29's own
+guidance) — there's also no internet-reachable cluster for a hosted runner
+to deploy to; this project's Kubernetes is local-only.
+
+Both workflows were verified locally with [`act`](https://github.com/nektos/act)
+before ever being pushed — each of the 4 test jobs confirmed passing
+individually against real service containers, and `build.yml`'s reusable-
+workflow structure (gating the Docker build behind `test.yml` passing)
+confirmed to parse and stage correctly. The actual GHCR push step wasn't
+run locally (needs real registry credentials), so that part will get its
+first real run on an actual push to GitHub.
+
+While verifying this, found and fixed a real bug: deliberately disrupting
+Postgres mid-test (to check `act`'s Postgres service container behavior)
+crashed every `ranking-api`/`worker` pod in the live Kubernetes cluster at
+once — `pg.Pool` emits an `'error'` event on a dropped idle connection, and
+with no listener, Node's default behavior is to throw and crash the
+process. Fixed in both services' `db.ts` (`pool.on("error", ...)` — log and
+let the pool reconnect, instead of taking the whole process down over a
+transient connection blip) and redeployed to the live cluster.
+
 ## Status
 
-Phases 1–6 of `spec.md`'s build plan are done: database, all three backend
-services, the frontend, Docker/Docker Compose, Kubernetes, and now scaling
-— 3 replicas each (frontend/vote-api/ranking-api/worker), resource
-requests/limits on every container, and both pod-failure and rolling-update
-demonstrated live with zero dropped requests (see `kubernetes/README.md`'s
-"Phase 6 verification" for the numbers). CI/CD (Phase 7) is next; HPA is
-still open as a stretch item.
+Phases 1–7 of `spec.md`'s build plan are done: database, all three backend
+services, the frontend, Docker/Docker Compose, Kubernetes, scaling, and now
+CI/CD. HPA is still open as a stretch item; monitoring (Phase 8) is next.

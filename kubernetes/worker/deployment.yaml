@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: musicrank-worker:0.1.0
+          image: musicrank-worker:0.1.1
           imagePullPolicy: IfNotPresent
           env:
             - name: DATABASE_URL

@@ -21,4 +21,6 @@ that song.
 npm install
 npm run dev     # requires REDIS_URL and DATABASE_URL (both default to localhost)
 npm test        # integration tests — needs postgres running and migrated
+npm run lint    # eslint
+npm run typecheck
 ```

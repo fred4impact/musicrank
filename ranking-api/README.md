@@ -36,4 +36,6 @@ this formula needs the global mean, which isn't known per-song.
 npm install
 npm run dev    # requires DATABASE_URL (defaults to localhost)
 npm test       # integration tests — needs postgres running, migrated, seeded
+npm run lint   # eslint
+npm run typecheck
 ```

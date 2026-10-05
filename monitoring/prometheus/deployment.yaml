@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: musicrank
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.55.1
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        # emptyDir, not a PVC — metrics history resets if this pod is
+        # recreated. Deliberate: long-term retention isn't the point of
+        # this demo (unlike Postgres's PVC, which protects actual user
+        # data), and it keeps this phase's scope from ballooning further.
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: musicrank
+spec:
+  # Exposed directly so the Prometheus UI/API is browsable at
+  # localhost:9090 for debugging queries — same reasoning as exposing
+  # vote-api/ranking-api directly rather than hiding everything behind
+  # Grafana only.
+  type: LoadBalancer
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090

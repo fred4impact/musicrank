@@ -46,6 +46,20 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET /metrics", () => {
+  it("exposes Prometheus-format metrics including votes_received_total", async () => {
+    const app = createApp();
+    await request(app).post("/api/v1/votes").send({ songId: 1, rating: 5, userId: validUserId });
+
+    const res = await request(app).get("/metrics");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/text\/plain/);
+    expect(res.text).toContain("votes_received_total");
+    expect(res.text).toContain('result="accepted"');
+    expect(res.text).toContain("http_request_duration_seconds");
+  });
+});
+
 describe("GET /ready", () => {
   it("returns 200 when Redis is reachable", async () => {
     const app = createApp();

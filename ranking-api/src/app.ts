@@ -9,11 +9,19 @@ import { rankingsRouter } from "./routes/rankings.js";
 import { songsRouter } from "./routes/songs.js";
 import { artistsRouter } from "./routes/artists.js";
 import { genresRouter } from "./routes/genres.js";
+import { metricsMiddleware, registerPoolMetrics, registry } from "./metrics.js";
 
 export function createApp(pool: Pool) {
   const app = express();
   app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
   app.use(express.json());
+  app.use(metricsMiddleware);
+  registerPoolMetrics(pool);
+
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", registry.contentType);
+    res.send(await registry.metrics());
+  });
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });

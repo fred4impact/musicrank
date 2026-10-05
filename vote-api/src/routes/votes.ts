@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { getRedisClient, VOTE_QUEUE_KEY } from "../redis.js";
+import { votesReceivedTotal } from "../metrics.js";
 import { voteRequestSchema } from "../validation.js";
 import type { VoteEvent } from "../types.js";
 
@@ -10,6 +11,7 @@ votesRouter.post("/votes", async (req, res) => {
   const parsed = voteRequestSchema.safeParse(req.body);
 
   if (!parsed.success) {
+    votesReceivedTotal.inc({ result: "invalid" });
     return res.status(400).json({
       error: {
         code: "INVALID_VOTE_REQUEST",
@@ -30,6 +32,7 @@ votesRouter.post("/votes", async (req, res) => {
   try {
     await getRedisClient().lpush(VOTE_QUEUE_KEY, JSON.stringify(event));
   } catch {
+    votesReceivedTotal.inc({ result: "queue_unavailable" });
     return res.status(500).json({
       error: {
         code: "QUEUE_UNAVAILABLE",
@@ -38,6 +41,7 @@ votesRouter.post("/votes", async (req, res) => {
     });
   }
 
+  votesReceivedTotal.inc({ result: "accepted" });
   return res.status(202).json({
     message: "Vote accepted",
     voteId: event.eventId,

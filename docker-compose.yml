@@ -57,6 +57,8 @@ services:
 
   worker:
     build: ./worker
+    ports:
+      - "9090:9090" # /metrics only — no real API, see worker/Dockerfile
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgres://musicrank:musicrank@postgres:5432/musicrank

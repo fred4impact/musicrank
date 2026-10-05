@@ -16,6 +16,11 @@ COPY --from=builder /app/dist ./dist
 RUN addgroup -S app && adduser -S app -G app
 USER app
 
-# No HTTP server here — nothing to HEALTHCHECK over HTTP. Process liveness
-# (is it running at all) is what Docker/Kubernetes can observe for this one.
+# No real API — spec §20's health-check requirement is API-scoped, and
+# this still isn't one. But it does now run a tiny HTTP server for
+# Prometheus (added in Phase 8), so that doubles as a liveness signal.
+EXPOSE 9090
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:9090/metrics',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
 CMD ["node", "dist/index.js"]

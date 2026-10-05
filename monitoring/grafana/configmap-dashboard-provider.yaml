@@ -1,0 +1,17 @@
+# Tells Grafana to auto-load any dashboard JSON dropped into
+# /var/lib/grafana/dashboards — paired with configmap-dashboard.yaml below,
+# which mounts the actual dashboard there.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: musicrank
+data:
+  provider.yml: |
+    apiVersion: 1
+    providers:
+      - name: musicrank
+        folder: MusicRank
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards

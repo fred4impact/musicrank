@@ -6,6 +6,7 @@ Read-only service exposing rankings and catalog data from Postgres.
 
 - `GET /health` — liveness: always 200 if the process is up
 - `GET /ready` — readiness: 200 if Postgres is reachable, 503 otherwise
+- `GET /metrics` — Prometheus format — HTTP request rate/latency, DB pool gauges, default process metrics
 - `GET /api/v1/rankings/global?limit=&offset=` — Bayesian-weighted ranking (see below)
 - `GET /api/v1/rankings/trending?limit=&offset=` — votes in the last 24h
 - `GET /api/v1/songs?limit=&offset=&genre=`

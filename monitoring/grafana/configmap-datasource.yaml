@@ -1,0 +1,18 @@
+# Grafana's provisioning mechanism — this ConfigMap mounted at
+# /etc/grafana/provisioning/datasources means the Prometheus datasource
+# exists on first boot, no manual "Add data source" click-through needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: musicrank
+data:
+  prometheus.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true

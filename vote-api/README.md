@@ -8,6 +8,7 @@ directly — see spec §6.
 
 - `GET /health` → `{ "status": "ok" }` (liveness — always 200 if the process is up)
 - `GET /ready` → 200 if Redis is reachable, 503 otherwise (readiness)
+- `GET /metrics` → Prometheus format — HTTP request rate/latency, `votes_received_total`, default process metrics
 - `POST /api/v1/votes` → `{ songId: number, rating: 1-5, userId: uuid }`
 
 ## Local development

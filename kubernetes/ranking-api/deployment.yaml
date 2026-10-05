@@ -17,10 +17,14 @@ spec:
     metadata:
       labels:
         app: ranking-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4002"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: ranking-api
-          image: musicrank-ranking-api:0.1.1
+          image: musicrank-ranking-api:0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4002

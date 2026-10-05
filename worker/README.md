@@ -15,6 +15,12 @@ that song.
 - Any other failure (e.g. a dropped DB connection) is requeued onto
   `music:votes` after a short delay.
 
+## Metrics
+
+No real API, but runs a bare `http.Server` just for Prometheus:
+`GET :9090/metrics` — `votes_processed_total` (by outcome), vote processing
+duration, Redis queue depth, DB pool gauges, default process metrics.
+
 ## Local development
 
 ```bash

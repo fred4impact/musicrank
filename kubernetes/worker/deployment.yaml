@@ -17,11 +17,17 @@ spec:
     metadata:
       labels:
         app: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: worker
-          image: musicrank-worker:0.1.1
+          image: musicrank-worker:0.2.0
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090 # /metrics only (Phase 8) — still no real API
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -38,7 +44,21 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
-          # No readiness/liveness probes — no HTTP server to check against
-          # (spec §20's health check requirement is API-scoped). Each
-          # replica independently BRPOPs the same Redis list, so Redis
-          # itself guarantees no two workers process the same event.
+          # No readinessProbe — no Service routes traffic to these pods, so
+          # there's nothing for readiness to gate. livenessProbe still makes
+          # sense: if the metrics server is wedged, the process likely is
+          # too, and Redis's BRPOP already guarantees no two replicas race
+          # on the same event, so a restart here is always safe.
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            # Default timeoutSeconds (1s) was too tight here: /metrics does
+            # an async Redis LLEN call (registerQueueSizeMetric), and under
+            # concurrent scrape load from both this probe and Prometheus's
+            # own 15s scrape interval, that occasionally pushed past 1s —
+            # observed this for real as a liveness-triggered restart loop
+            # with no actual error in the logs, just probe timeouts.
+            timeoutSeconds: 5

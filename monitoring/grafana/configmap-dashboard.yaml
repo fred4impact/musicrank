@@ -1,0 +1,161 @@
+# GENERATED FILE — do not hand-edit. Regenerate after changing
+# monitoring/grafana/musicrank-dashboard.json:
+#
+#   kubectl create configmap grafana-dashboard-musicrank \
+#     --from-file=musicrank-dashboard.json=monitoring/grafana/musicrank-dashboard.json \
+#     -n musicrank --dry-run=client -o yaml > monitoring/grafana/configmap-dashboard.yaml
+#
+# (then re-add this header comment)
+apiVersion: v1
+data:
+  musicrank-dashboard.json: |
+    {
+      "title": "MusicRank",
+      "uid": "musicrank",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-1h", "to": "now" },
+      "tags": ["musicrank"],
+      "panels": [
+        { "type": "row", "title": "HTTP — vote-api & ranking-api", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 100 },
+        {
+          "type": "timeseries",
+          "title": "HTTP request rate",
+          "id": 1,
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(http_requests_total[1m])) by (app, route)", "legendFormat": "{{app}} {{route}}" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "HTTP error rate (5xx)",
+          "id": 2,
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (app, route)", "legendFormat": "{{app}} {{route}}" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 request latency",
+          "id": 3,
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, app, route))",
+              "legendFormat": "{{app}} {{route}}"
+            }
+          ]
+        },
+
+        { "type": "row", "title": "Voting pipeline", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "id": 101 },
+        {
+          "type": "timeseries",
+          "title": "Votes received (vote-api)",
+          "id": 4,
+          "gridPos": { "h": 7, "w": 6, "x": 0, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum(rate(votes_received_total[1m])) by (result)", "legendFormat": "{{result}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Votes processed (worker)",
+          "id": 5,
+          "gridPos": { "h": 7, "w": 6, "x": 6, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "sum(rate(votes_processed_total[1m])) by (outcome)", "legendFormat": "{{outcome}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Redis queue size",
+          "id": 6,
+          "gridPos": { "h": 7, "w": 6, "x": 12, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [{ "expr": "redis_vote_queue_size", "legendFormat": "{{pod}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 vote processing time",
+          "id": 7,
+          "gridPos": { "h": 7, "w": 6, "x": 18, "y": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(vote_processing_duration_seconds_bucket[5m])) by (le))" }
+          ]
+        },
+
+        { "type": "row", "title": "Resources", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "id": 102 },
+        {
+          "type": "timeseries",
+          "title": "CPU usage by pod",
+          "id": 8,
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 17 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(process_cpu_user_seconds_total[1m]) + rate(process_cpu_system_seconds_total[1m])) by (app, pod)",
+              "legendFormat": "{{app}}/{{pod}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory usage by pod",
+          "id": 9,
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 17 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+          "targets": [{ "expr": "process_resident_memory_bytes", "legendFormat": "{{app}}/{{pod}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Postgres pool connections (ranking-api & worker)",
+          "id": 10,
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 17 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "expr": "db_pool_total_connections", "legendFormat": "{{app}} total" },
+            { "expr": "db_pool_idle_connections", "legendFormat": "{{app}} idle" }
+          ]
+        },
+
+        { "type": "row", "title": "Kubernetes (kube-state-metrics)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }, "id": 103 },
+        {
+          "type": "timeseries",
+          "title": "Pod restarts",
+          "id": 11,
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 25 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_pod_container_status_restarts_total{namespace=\"musicrank\"}",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Ready pods per Deployment",
+          "id": 12,
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 25 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_deployment_status_replicas_ready{namespace=\"musicrank\"}",
+              "legendFormat": "{{deployment}}"
+            }
+          ]
+        }
+      ]
+    }
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-musicrank
+  namespace: musicrank

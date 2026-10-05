@@ -33,6 +33,17 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET /metrics", () => {
+  it("exposes Prometheus-format metrics including db pool gauges", async () => {
+    await request(app).get("/api/v1/genres"); // generate at least one HTTP metric sample
+    const res = await request(app).get("/metrics");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/text\/plain/);
+    expect(res.text).toContain("http_request_duration_seconds");
+    expect(res.text).toContain("db_pool_total_connections");
+  });
+});
+
 describe("GET /ready", () => {
   it("returns 200 when Postgres is reachable", async () => {
     const res = await request(app).get("/ready");

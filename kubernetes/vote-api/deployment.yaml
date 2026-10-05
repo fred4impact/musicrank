@@ -17,10 +17,14 @@ spec:
     metadata:
       labels:
         app: vote-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4001"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: vote-api
-          image: musicrank-vote-api:v0.2.0
+          image: musicrank-vote-api:v0.3.0
           imagePullPolicy: IfNotPresent # built locally via docker compose — see README
           ports:
             - containerPort: 4001

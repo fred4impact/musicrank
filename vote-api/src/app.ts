@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import cors from "cors";
 import express from "express";
 import { getRedisClient } from "./redis.js";
+import { metricsMiddleware, registry } from "./metrics.js";
 import { votesRouter } from "./routes/votes.js";
 
 // Read once at startup rather than per-request. Used to make a rolling
@@ -16,6 +17,12 @@ export function createApp() {
   const app = express();
   app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
   app.use(express.json());
+  app.use(metricsMiddleware);
+
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", registry.contentType);
+    res.send(await registry.metrics());
+  });
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok", version });

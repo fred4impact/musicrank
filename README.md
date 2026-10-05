@@ -100,8 +100,17 @@ process. Fixed in both services' `db.ts` (`pool.on("error", ...)` — log and
 let the pool reconnect, instead of taking the whole process down over a
 transient connection blip) and redeployed to the live cluster.
 
+## Monitoring
+
+See `monitoring/README.md` — Prometheus (auto-discovers every app pod via
+annotations, no ServiceMonitor CRDs) + `kube-state-metrics` (pod restarts,
+replica status) + Grafana, with the datasource and a 16-panel dashboard
+both provisioned on boot. Grafana: http://localhost:3000 (anonymous viewer
+access). Prometheus: http://localhost:9090.
+
 ## Status
 
-Phases 1–7 of `spec.md`'s build plan are done: database, all three backend
-services, the frontend, Docker/Docker Compose, Kubernetes, scaling, and now
-CI/CD. HPA is still open as a stretch item; monitoring (Phase 8) is next.
+Phases 1–8 of `spec.md`'s build plan are done: database, all three backend
+services, the frontend, Docker/Docker Compose, Kubernetes, scaling, CI/CD,
+and now monitoring. HPA, tracing, and alerting are the remaining stretch
+items — spec's core build plan is otherwise complete.

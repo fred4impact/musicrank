@@ -1,0 +1,36 @@
+# monitoring/prometheus/ contains rbac.yaml (ClusterRole/ClusterRoleBinding
+# — cluster-scoped, ignores destination.namespace) alongside the Deployment
+# — the AppProject's clusterResourceWhitelist is what permits that.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: musicrank-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2" # last — Prometheus scrapes the app pods, so they should exist first
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        revision: feature
+        directories:
+          - path: monitoring/prometheus
+          - path: monitoring/grafana
+  template:
+    metadata:
+      name: "{{path.basename}}"
+    spec:
+      project: musicrank
+      source:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        targetRevision: feature
+        path: "{{path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: musicrank
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

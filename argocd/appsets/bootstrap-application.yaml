@@ -1,0 +1,30 @@
+# Namespace + ConfigMap only — deliberately NOT the Secret. See the top of
+# how_to_argocd.md's "Secrets and GitOps don't mix by default" section:
+# kubernetes/secrets.yaml is gitignored (it holds real credentials), so it
+# was never pushed to GitHub, and ArgoCD — which only ever reads from
+# Git — literally cannot see it to deploy it. That stays a manual,
+# out-of-band step, same as it already was in how_to_deploy.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: musicrank-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1" # after the AppProject, before everything else
+spec:
+  project: musicrank
+  source:
+    repoURL: https://github.com/fred4impact/musicrank.git
+    targetRevision: feature
+    path: kubernetes
+    directory:
+      include: "{namespace.yaml,configmap.yaml}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: musicrank
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

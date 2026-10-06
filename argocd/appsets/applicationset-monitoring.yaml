@@ -1,0 +1,45 @@
+# monitoring/prometheus/ contains rbac.yaml (ClusterRole/ClusterRoleBinding
+# — cluster-scoped, ignores destination.namespace) alongside the Deployment
+# — the AppProject's clusterResourceWhitelist is what permits that.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: musicrank-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2" # last — Prometheus scrapes the app pods, so they should exist first
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        revision: feature
+        directories:
+          - path: monitoring/prometheus
+          - path: monitoring/grafana
+  template:
+    metadata:
+      name: "{{path.basename}}"
+    spec:
+      project: musicrank
+      source:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        targetRevision: feature
+        path: "{{path}}"
+        directory:
+          # monitoring/grafana/musicrank-dashboard.json is raw Grafana
+          # dashboard data (no apiVersion/kind) — the source of truth that
+          # configmap-dashboard.yaml is generated FROM, not something to
+          # apply directly. ArgoCD's directory source otherwise tries to
+          # parse every file in the path as a K8s manifest and fails on
+          # this one. Found this for real: grafana's Application sat at
+          # sync status "Unknown" with exactly this error.
+          exclude: "*.json"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: musicrank
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

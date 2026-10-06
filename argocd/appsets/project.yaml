@@ -1,0 +1,38 @@
+# AppProject scopes what every musicrank Application is even allowed to
+# do — same least-privilege theme as monitoring/prometheus/rbac.yaml
+# (see kubernetes/study.md Module 8). Without this, every Application
+# would default to ArgoCD's wide-open "default" project (any repo, any
+# destination, any resource kind).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: musicrank
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2" # must exist before anything references project: musicrank
+spec:
+  description: MusicRank — event-driven music ranking platform
+
+  sourceRepos:
+    - https://github.com/fred4impact/musicrank.git
+
+  destinations:
+    - namespace: musicrank
+      server: https://kubernetes.default.svc
+    - namespace: argocd # the ApplicationSets/Applications themselves live here
+      server: https://kubernetes.default.svc
+
+  # Only the resource kinds this project actually uses, cluster-wide.
+  # Notably absent: anything that could grant further RBAC privileges,
+  # or touch resources outside the musicrank/argocd namespaces.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

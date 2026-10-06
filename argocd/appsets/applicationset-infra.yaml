@@ -1,0 +1,38 @@
+# Generates one Application per matching directory — add a new directory
+# under kubernetes/ later and it's picked up automatically, no new YAML
+# to hand-write. The git "directories" generator only ever matches
+# directories, never plain files, so kubernetes/README.md etc are
+# correctly ignored.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: musicrank-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0" # after bootstrap (namespace must exist), before app services
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        revision: feature
+        directories:
+          - path: kubernetes/postgres
+          - path: kubernetes/redis
+  template:
+    metadata:
+      name: "{{path.basename}}"
+    spec:
+      project: musicrank
+      source:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        targetRevision: feature
+        path: "{{path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: musicrank
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

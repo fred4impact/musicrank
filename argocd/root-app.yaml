@@ -1,0 +1,33 @@
+# The one resource you apply by hand. Everything else — the AppProject,
+# the bootstrap Application, and all 3 ApplicationSets — lives in
+# argocd/appsets/ and is managed BY this Application from here on
+# (GitOps managing its own GitOps config). Deliberately lives outside
+# appsets/ itself, so there's no self-reference loop.
+#
+# Uses ArgoCD's built-in "default" project (not "musicrank") because the
+# musicrank AppProject doesn't exist yet at the moment this bootstraps —
+# this Application is what creates it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: musicrank-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/fred4impact/musicrank.git
+    targetRevision: feature
+    path: argocd/appsets
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

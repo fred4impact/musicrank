@@ -108,9 +108,24 @@ replica status) + Grafana, with the datasource and a 16-panel dashboard
 both provisioned on boot. Grafana: http://localhost:3000 (anonymous viewer
 access). Prometheus: http://localhost:9090.
 
+## GitOps with ArgoCD
+
+See `argocd/how_to_argocd.md` — the same system, deployed and kept in sync
+declaratively instead of via `kubectl apply`. An "app of apps" (one root
+Application managing an AppProject, a bootstrap Application, and 3
+ApplicationSets grouped by tier) means a new service directory under
+`kubernetes/` or `monitoring/` gets its own Application automatically, no
+new YAML to hand-write. Covers the real reason this exists (automatic
+drift correction — manually `kubectl scale`ing a Deployment gets silently
+reverted within ~30s), the Secret-vs-GitOps conflict and how it's handled,
+and two real bugs hit setting it up (the ApplicationSet CRD's install size,
+a non-manifest file ArgoCD tried to parse as one).
+
 ## Status
 
 Phases 1–8 of `spec.md`'s build plan are done: database, all three backend
 services, the frontend, Docker/Docker Compose, Kubernetes, scaling, CI/CD,
-and now monitoring. HPA, tracing, and alerting are the remaining stretch
-items — spec's core build plan is otherwise complete.
+and monitoring — plus ArgoCD/GitOps and a 10-module teaching guide
+(`kubernetes/study.md`) beyond spec's own scope. HPA, tracing, and
+alerting are the remaining stretch items — spec's core build plan is
+otherwise complete.

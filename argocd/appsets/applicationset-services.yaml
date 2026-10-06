@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: musicrank-services
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1" # after infra (postgres/redis), before monitoring
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        revision: feature
+        directories:
+          - path: kubernetes/vote-api
+          - path: kubernetes/ranking-api
+          - path: kubernetes/worker
+          - path: kubernetes/frontend
+  template:
+    metadata:
+      name: "{{path.basename}}"
+    spec:
+      project: musicrank
+      source:
+        repoURL: https://github.com/fred4impact/musicrank.git
+        targetRevision: feature
+        path: "{{path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: musicrank
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
